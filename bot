@@ -1,0 +1,73 @@
+import telebot
+import requests
+import json
+import time
+from translate import Translator
+
+import const
+
+from telebot import types
+
+
+bot = telebot.TeleBot(token=const.TOKEN)
+
+name = ''
+msg = ''
+@bot.message_handler(content_types=['text'])
+
+
+def start(message):
+	if message.text == '/reg':
+		bot.send_message(message.chat.id, 'Привет, в каком городе тебя интересует погода?')
+		bot.register_next_step_handler(message, get_name)
+		global nam
+		nam = message.chat.id
+	else:
+		bot.send_message(message.from_user.id, 'Напиши /reg')
+
+def get_name(message):
+	global name
+	name = message.text
+	message = name
+	get_translate(message)
+
+def get_translate(message):
+	translator= Translator(from_lang="ru", to_lang="en")
+	name_en = translator.translate(name)
+	message = name_en
+	get_all_weather(message)
+
+def get_all_weather(message):
+	url = 'https://api.openweathermap.org/data/2.5/weather?q='+message+'&lang=ru&units=metric&appid=6f6cd1729a2141be7f67c2015a2fbe6c'
+	response = requests.get(url)
+	data = json.loads(response.content)
+	get_weather(data)
+
+def get_weather(data):
+	for elem in data['weather']:
+		weather = elem ['main']
+	temp = data['main']['temp']
+	translator= Translator(from_lang="en", to_lang="ru")
+	weather_ru = translator.translate(weather)
+	city = data ['name']
+	global msg
+	msg = 'Погода в '+city+': Температура '+str(temp)+', '+weather_ru+''
+	
+	answer(msg)
+
+
+def answer(msg):
+	data = {
+	'chat_id': nam,
+	'text': msg
+	}
+	response = requests.post('https://api.telegram.org/bot1699001324:AAEAgTPCq_tZnvnu9jSk66NdSo5EVxkxrMs/sendMessage', data=data)
+	print (response)
+
+bot.polling()
+while True:
+	try:
+		bot.polling(none_stop=True)
+
+	except Exception as e:
+		time.sleep(15)
